@@ -8,10 +8,10 @@ const express = require('express');
 // --- 0. RAILWAY VOLUME PATH SETUP ---
 const dataDir = fs.existsSync('/data') ? '/data' : __dirname;
 
-// --- 1. AUTO DOWNLOAD & REGISTER KHMER & CHINESE FONTS ---
+// --- 1. AUTO DOWNLOAD & REGISTER KHMER & CHINESE FONTS (V2 Cache Bypass) ---
 const fontsDir = path.join(dataDir, 'fonts');
 const khmerFontPath = path.join(fontsDir, 'Battambang-Bold.ttf');
-const chineseFontPath = path.join(fontsDir, 'NotoSansSC-Bold.ttf');
+const chineseFontPath = path.join(fontsDir, 'ChineseFont_v2.ttf');
 
 async function setupFonts() {
   try {
@@ -31,19 +31,19 @@ async function setupFonts() {
     }
     registerFont(khmerFontPath, { family: 'KhmerFont' });
 
-    // 2. Chinese Font (Direct Reliable Raw Download)
+    // 2. Chinese Font (Direct Reliable Standard TrueType Download)
     if (!fs.existsSync(chineseFontPath)) {
-      console.log("Downloading Chinese Bold Font (Noto Sans SC)...");
-      const fontUrl = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Bold.ttf";
+      console.log("Downloading Chinese Standard CJK Font (V2)...");
+      const fontUrl = "https://github.com/google/fonts/raw/main/ofl/notosanssc/static/NotoSansSC-Bold.ttf";
       const response = await fetch(fontUrl);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const buffer = Buffer.from(await response.arrayBuffer());
       fs.writeFileSync(chineseFontPath, buffer);
-      console.log("Chinese Bold Font downloaded successfully!");
+      console.log("Chinese Font V2 downloaded successfully!");
     }
     registerFont(chineseFontPath, { family: 'ChineseFont' });
 
-    console.log("All Fonts (Khmer + Chinese) registered successfully!");
+    console.log("All Fonts (Khmer + Chinese V2) registered successfully!");
   } catch (err) {
     console.error("Error setting up Fonts:", err.message);
   }

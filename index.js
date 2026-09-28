@@ -31,7 +31,7 @@ async function setupFonts() {
     }
     registerFont(khmerFontPath, { family: 'KhmerFont' });
 
-    // 2. Chinese Font ( 🌐 Direct Reliable Raw Download )
+    // 2. Chinese Font (Direct Reliable Raw Download)
     if (!fs.existsSync(chineseFontPath)) {
       console.log("Downloading Chinese Bold Font (Noto Sans SC)...");
       const fontUrl = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Bold.ttf";
@@ -577,7 +577,7 @@ bot.action(/^approve_group:(.+)$/, async (ctx) => {
     ctx.chat.id,
     ctx.callbackQuery.message.message_id,
     null,
-    `🎉 **បញ្ចប់ដំណើរការដោយជោគជ័យ និងសុវត្ថិភាព ១០០%!**\n\n📌 **Group:** ${targetTitle}\n✅ បាន Approve សរុប: **${approvedCount.toLocaleString()} នាក់**\n❌ បរាជ័យ: **${failedCount នាក់**`,
+    `🎉 **បញ្ចប់ដំណើរការដោយជោគជ័យ និងសុវត្ថិភាព ១០០%!**\n\n📌 **Group:** ${targetTitle}\n✅ បាន Approve សរុប: **${approvedCount.toLocaleString()} នាក់**\n❌ បរាជ័យ: **${failedCount} នាក់**`,
     { parse_mode: 'Markdown' }
   );
 });
@@ -689,7 +689,7 @@ bot.on('message', async (ctx, next) => {
   return next();
 });
 
-// --- 13. FIXED ORDER PARSER (SUPPORT XL, XXL & CHINESE) ---
+// --- 13. FIXED ORDER PARSER ---
 function parseOrderText(text) {
   try {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l);
@@ -739,7 +739,6 @@ function parseOrderText(text) {
           let nextLine = lines[i + 1];
           i++;
 
-          // 🧠 FIXED REGEX: ការពារការច្រឡំ XL/XXL ជាមួយសញ្ញាគុណ [x]
           let sizeMatch = nextLine.match(/Size:\s*([A-Za-z0-9\s]+?)\s*[×x✕*]\s*([\d\.]+)\s*—\s*\$([\d\.]+)/);
           if (sizeMatch) {
             size = sizeMatch[1].trim();
@@ -767,7 +766,7 @@ function parseOrderText(text) {
   }
 }
 
-// 🧠 SMART TEXT WRAPPER (Support Khmer + Chinese + English)
+// 🧠 SMART TEXT WRAPPER
 function wrapText(ctx, text, maxWidth) {
   const words = text.split(' ');
   let lines = [];
@@ -813,7 +812,6 @@ function renderSinglePage(data, pageItems, startIndex, pageNum, totalPages, exch
     const isFirstPage = pageNum === 1;
     const isLastPage = pageNum === totalPages;
     
-    // 🌐 Font Fallback គាំទ្រទាំង Khmer & Chinese
     const font = 'KhmerFont, ChineseFont, sans-serif';
     
     const canvasTemp = createCanvas(baseWidth * scale, 100 * scale);

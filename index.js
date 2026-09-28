@@ -31,10 +31,10 @@ async function setupFonts() {
     }
     registerFont(khmerFontPath, { family: 'KhmerFont' });
 
-    // 2. Chinese Font (CN Support)
+    // 2. Chinese Font ( 🌐 Direct Reliable Raw Download )
     if (!fs.existsSync(chineseFontPath)) {
-      console.log("Downloading Chinese Bold Font (NotoSansSC) from Google Fonts...");
-      const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/static/NotoSansSC-Bold.ttf";
+      console.log("Downloading Chinese Bold Font (Noto Sans SC)...");
+      const fontUrl = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Bold.ttf";
       const response = await fetch(fontUrl);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const buffer = Buffer.from(await response.arrayBuffer());
@@ -577,7 +577,7 @@ bot.action(/^approve_group:(.+)$/, async (ctx) => {
     ctx.chat.id,
     ctx.callbackQuery.message.message_id,
     null,
-    `🎉 **បញ្ចប់ដំណើរការដោយជោគជ័យ និងសុវត្ថិភាព ១០០%!**\n\n📌 **Group:** ${targetTitle}\n✅ បាន Approve សរុប: **${approvedCount.toLocaleString()} នាក់**\n❌ បរាជ័យ: **${failedCount} នាក់**`,
+    `🎉 **បញ្ចប់ដំណើរការដោយជោគជ័យ និងសុវត្ថិភាព ១០០%!**\n\n📌 **Group:** ${targetTitle}\n✅ បាន Approve សរុប: **${approvedCount.toLocaleString()} នាក់**\n❌ បរាជ័យ: **${failedCount នាក់**`,
     { parse_mode: 'Markdown' }
   );
 });
@@ -689,7 +689,7 @@ bot.on('message', async (ctx, next) => {
   return next();
 });
 
-// --- 13. ORDER PARSER ---
+// --- 13. FIXED ORDER PARSER (SUPPORT XL, XXL & CHINESE) ---
 function parseOrderText(text) {
   try {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l);
@@ -738,7 +738,9 @@ function parseOrderText(text) {
         if (i + 1 < lines.length && (lines[i + 1].includes('Size:') || lines[i + 1].includes('×') || lines[i + 1].includes('x'))) {
           let nextLine = lines[i + 1];
           i++;
-          let sizeMatch = nextLine.match(/Size:\s*([^×x]+)[×x]\s*([\d\.]+)\s*—\s*\$([\d\.]+)/i);
+
+          // 🧠 FIXED REGEX: ការពារការច្រឡំ XL/XXL ជាមួយសញ្ញាគុណ [x]
+          let sizeMatch = nextLine.match(/Size:\s*([A-Za-z0-9\s]+?)\s*[×x✕*]\s*([\d\.]+)\s*—\s*\$([\d\.]+)/);
           if (sizeMatch) {
             size = sizeMatch[1].trim();
             qty = parseFloat(sizeMatch[2]) || 1;
@@ -783,7 +785,6 @@ function wrapText(ctx, text, maxWidth) {
         currentLine = '';
       }
 
-      // ប្រសិនបើពាក្យ/អក្សរចិនវែងពេកគ្មាន Space ត្រូវពុះតាមតួអក្សរ (Character-by-character wrap for CJK)
       if (ctx.measureText(word).width > maxWidth) {
         let charLine = '';
         for (let char of Array.from(word)) {
@@ -812,7 +813,7 @@ function renderSinglePage(data, pageItems, startIndex, pageNum, totalPages, exch
     const isFirstPage = pageNum === 1;
     const isLastPage = pageNum === totalPages;
     
-    // 🌐 កំណត់ឱ្យប្រើ Font Khmer និង Font ចិនរួមគ្នា
+    // 🌐 Font Fallback គាំទ្រទាំង Khmer & Chinese
     const font = 'KhmerFont, ChineseFont, sans-serif';
     
     const canvasTemp = createCanvas(baseWidth * scale, 100 * scale);

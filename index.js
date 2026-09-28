@@ -8,44 +8,68 @@ const express = require('express');
 // --- 0. RAILWAY VOLUME PATH SETUP ---
 const dataDir = fs.existsSync('/data') ? '/data' : __dirname;
 
-// --- 1. AUTO DOWNLOAD & REGISTER KHMER & CHINESE FONTS (V2 Cache Bypass) ---
+// --- 1. AUTO DOWNLOAD & REGISTER KHMER & CHINESE FONTS (V3) ---
 const fontsDir = path.join(dataDir, 'fonts');
 const khmerFontPath = path.join(fontsDir, 'Battambang-Bold.ttf');
-const chineseFontPath = path.join(fontsDir, 'ChineseFont_v2.ttf');
+const chineseFontPath = path.join(fontsDir, 'ChineseFont_v3.otf');
+// Optional: put NotoSansSC-Bold.otf in <repo>/fonts/ and it will be used without downloading
+const localChineseFontPath = path.join(__dirname, 'fonts', 'NotoSansSC-Bold.otf');
+
+const CHINESE_FONT_MIN_SIZE = 1000000; // real file is several MB
+
+async function downloadFile(url, dest, minSize = 0) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length < minSize) throw new Error(`Font file too small / invalid (${buffer.length} bytes)`);
+  fs.writeFileSync(dest, buffer);
+}
 
 async function setupFonts() {
-  try {
-    if (!fs.existsSync(fontsDir)) {
-      fs.mkdirSync(fontsDir, { recursive: true });
-    }
+  if (!fs.existsSync(fontsDir)) {
+    fs.mkdirSync(fontsDir, { recursive: true });
+  }
 
-    // 1. Khmer Font
+  // 1. Khmer Font
+  try {
     if (!fs.existsSync(khmerFontPath)) {
       console.log("Downloading Khmer Bold Font from Google Fonts...");
-      const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/battambang/Battambang-Bold.ttf";
-      const response = await fetch(fontUrl);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const buffer = Buffer.from(await response.arrayBuffer());
-      fs.writeFileSync(khmerFontPath, buffer);
+      await downloadFile(
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/battambang/Battambang-Bold.ttf",
+        khmerFontPath
+      );
       console.log("Khmer Bold Font downloaded successfully!");
     }
     registerFont(khmerFontPath, { family: 'KhmerFont' });
-
-    // 2. Chinese Font (Direct Reliable Standard TrueType Download)
-    if (!fs.existsSync(chineseFontPath)) {
-      console.log("Downloading Chinese Standard CJK Font (V2)...");
-      const fontUrl = "https://github.com/google/fonts/raw/main/ofl/notosanssc/static/NotoSansSC-Bold.ttf";
-      const response = await fetch(fontUrl);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const buffer = Buffer.from(await response.arrayBuffer());
-      fs.writeFileSync(chineseFontPath, buffer);
-      console.log("Chinese Font V2 downloaded successfully!");
-    }
-    registerFont(chineseFontPath, { family: 'ChineseFont' });
-
-    console.log("All Fonts (Khmer + Chinese V2) registered successfully!");
+    console.log("Khmer font registered!");
   } catch (err) {
-    console.error("Error setting up Fonts:", err.message);
+    console.error("Khmer font error:", err.message);
+  }
+
+  // 2. Chinese Font
+  try {
+    let usePath = null;
+
+    if (fs.existsSync(localChineseFontPath) && fs.statSync(localChineseFontPath).size >= CHINESE_FONT_MIN_SIZE) {
+      usePath = localChineseFontPath;
+      console.log("Using local Chinese font from repo /fonts folder.");
+    } else {
+      if (!fs.existsSync(chineseFontPath) || fs.statSync(chineseFontPath).size < CHINESE_FONT_MIN_SIZE) {
+        console.log("Downloading Chinese Font (V3)...");
+        await downloadFile(
+          "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/SC/NotoSansSC-Bold.otf",
+          chineseFontPath,
+          CHINESE_FONT_MIN_SIZE
+        );
+        console.log("Chinese Font V3 downloaded!");
+      }
+      usePath = chineseFontPath;
+    }
+
+    registerFont(usePath, { family: 'ChineseFont' });
+    console.log("Chinese font registered!");
+  } catch (err) {
+    console.error("Chinese font error:", err.message);
   }
 }
 

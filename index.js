@@ -8,18 +8,44 @@ const express = require('express');
 // --- 0. RAILWAY VOLUME PATH SETUP ---
 const dataDir = fs.existsSync('/data') ? '/data' : __dirname;
 
-// --- 1. SETUP SYSTEM FONTS ---
+// --- 1. AUTO DOWNLOAD & REGISTER KHMER & CHINESE FONTS (V2 Cache Bypass) ---
+const fontsDir = path.join(dataDir, 'fonts');
+const khmerFontPath = path.join(fontsDir, 'Battambang-Bold.ttf');
+const chineseFontPath = path.join(fontsDir, 'ChineseFont_v2.ttf');
+
 async function setupFonts() {
   try {
-    registerFont('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', { family: 'SystemFont' });
-    console.log("Linux CJK System Font registered successfully!");
-  } catch (err) {
-    try {
-      registerFont('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', { family: 'SystemFont' });
-      console.log("Fallback System Font registered!");
-    } catch (e) {
-      console.log("Using default canvas fonts.");
+    if (!fs.existsSync(fontsDir)) {
+      fs.mkdirSync(fontsDir, { recursive: true });
     }
+
+    // 1. Khmer Font
+    if (!fs.existsSync(khmerFontPath)) {
+      console.log("Downloading Khmer Bold Font from Google Fonts...");
+      const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/battambang/Battambang-Bold.ttf";
+      const response = await fetch(fontUrl);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      fs.writeFileSync(khmerFontPath, buffer);
+      console.log("Khmer Bold Font downloaded successfully!");
+    }
+    registerFont(khmerFontPath, { family: 'KhmerFont' });
+
+    // 2. Chinese Font (Direct Reliable Standard TrueType Download)
+    if (!fs.existsSync(chineseFontPath)) {
+      console.log("Downloading Chinese Standard CJK Font (V2)...");
+      const fontUrl = "https://github.com/google/fonts/raw/main/ofl/notosanssc/static/NotoSansSC-Bold.ttf";
+      const response = await fetch(fontUrl);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      fs.writeFileSync(chineseFontPath, buffer);
+      console.log("Chinese Font V2 downloaded successfully!");
+    }
+    registerFont(chineseFontPath, { family: 'ChineseFont' });
+
+    console.log("All Fonts (Khmer + Chinese V2) registered successfully!");
+  } catch (err) {
+    console.error("Error setting up Fonts:", err.message);
   }
 }
 
@@ -786,8 +812,7 @@ function renderSinglePage(data, pageItems, startIndex, pageNum, totalPages, exch
     const isFirstPage = pageNum === 1;
     const isLastPage = pageNum === totalPages;
     
-    // 🌐 Use Linux SystemFont for perfect CJK & Khmer compatibility
-    const font = 'SystemFont, sans-serif';
+    const font = 'KhmerFont, ChineseFont, sans-serif';
     
     const canvasTemp = createCanvas(baseWidth * scale, 100 * scale);
     const ctxTemp = canvasTemp.getContext('2d');

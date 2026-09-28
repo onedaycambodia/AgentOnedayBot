@@ -6,34 +6,46 @@ const { createCanvas, registerFont } = require('canvas');
 const express = require('express');
 
 // --- 0. RAILWAY VOLUME PATH SETUP ---
-// បើមាន Folder /data (នៅលើ Railway Volume) វានឹងប្រើ /data បើអត់ទេប្រើ __dirname ធម្មតា
 const dataDir = fs.existsSync('/data') ? '/data' : __dirname;
 
-// --- 1. AUTO DOWNLOAD & REGISTER KHMER BOLD FONT ---
+// --- 1. AUTO DOWNLOAD & REGISTER KHMER & CHINESE FONTS ---
 const fontsDir = path.join(dataDir, 'fonts');
-const fontPath = path.join(fontsDir, 'Battambang-Bold.ttf');
+const khmerFontPath = path.join(fontsDir, 'Battambang-Bold.ttf');
+const chineseFontPath = path.join(fontsDir, 'NotoSansSC-Bold.ttf');
 
-async function setupKhmerFont() {
+async function setupFonts() {
   try {
     if (!fs.existsSync(fontsDir)) {
       fs.mkdirSync(fontsDir, { recursive: true });
     }
 
-    if (!fs.existsSync(fontPath)) {
+    // 1. Khmer Font
+    if (!fs.existsSync(khmerFontPath)) {
       console.log("Downloading Khmer Bold Font from Google Fonts...");
       const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/battambang/Battambang-Bold.ttf";
       const response = await fetch(fontUrl);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      fs.writeFileSync(fontPath, buffer);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      fs.writeFileSync(khmerFontPath, buffer);
       console.log("Khmer Bold Font downloaded successfully!");
     }
+    registerFont(khmerFontPath, { family: 'KhmerFont' });
 
-    registerFont(fontPath, { family: 'KhmerFont' });
-    console.log("Khmer Bold Font registered successfully!");
+    // 2. Chinese Font (CN Support)
+    if (!fs.existsSync(chineseFontPath)) {
+      console.log("Downloading Chinese Bold Font (NotoSansSC) from Google Fonts...");
+      const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/static/NotoSansSC-Bold.ttf";
+      const response = await fetch(fontUrl);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      fs.writeFileSync(chineseFontPath, buffer);
+      console.log("Chinese Bold Font downloaded successfully!");
+    }
+    registerFont(chineseFontPath, { family: 'ChineseFont' });
+
+    console.log("All Fonts (Khmer + Chinese) registered successfully!");
   } catch (err) {
-    console.error("Error setting up Khmer Font:", err.message);
+    console.error("Error setting up Fonts:", err.message);
   }
 }
 
@@ -57,7 +69,6 @@ if (!BOT_TOKEN) {
 }
 const bot = new Telegraf(BOT_TOKEN);
 
-// GLOBAL ERROR HANDLER — មិនឱ្យ error តិចតួចសម្លាប់ process ទេ
 bot.catch((err, ctx) => {
   console.error(`[Bot Error] ${ctx?.updateType || 'unknown'}:`, err.message);
 });
@@ -70,7 +81,6 @@ if (DATABASE_URL) {
   });
 }
 
-// ប្រើប្រាស់ Volume path សម្រាប់ licenses.json
 const dbFile = path.join(dataDir, 'licenses.json');
 let memoryDB = { 
   settings: { 
@@ -84,7 +94,6 @@ let memoryDB = {
   recentMsgIds: {}
 };
 
-// អានទិន្នន័យពី licenses.json ព្រមទាំងដាក់ Migration បំប្លែង Array ចាស់ទៅ Object
 if (fs.existsSync(dbFile)) {
   try {
     memoryDB = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
@@ -92,7 +101,6 @@ if (fs.existsSync(dbFile)) {
     if (!memoryDB.allowedUsers) memoryDB.allowedUsers = {};
     if (!memoryDB.pendingRequests) memoryDB.pendingRequests = {};
     
-    // MIGRATION: ប្រសិនបើ pendingRequests ធ្លាប់ជា Array ត្រូវបំប្លែងជា Object វិញស្វ័យប្រវត្តិ
     for (const chatId in memoryDB.pendingRequests) {
       if (Array.isArray(memoryDB.pendingRequests[chatId])) {
         const oldArray = memoryDB.pendingRequests[chatId];
@@ -130,7 +138,6 @@ async function initDB() {
         if (!memoryDB.allowedUsers) memoryDB.allowedUsers = {};
         if (!memoryDB.pendingRequests) memoryDB.pendingRequests = {};
 
-        // MIGRATION សម្រាប់ PostgreSQL
         for (const chatId in memoryDB.pendingRequests) {
           if (Array.isArray(memoryDB.pendingRequests[chatId])) {
             const oldArray = memoryDB.pendingRequests[chatId];
@@ -701,20 +708,20 @@ function parseOrderText(text) {
         shopName = line.split(/[—–]/)[0].replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
       }
 
-      if (line.includes('ឈ្មោះ:')) {
-        name = line.replace(/^[•\-\*]\s*ឈ្មោះ:\s*/, '').trim();
+      if (line.includes('ឈ្មោះ:') || line.includes('姓名:')) {
+        name = line.replace(/^[•\-\*]\s*(ឈ្មោះ|姓名):\s*/, '').trim();
       }
-      if (line.includes('លេខទូរស័ព្ទ:')) {
-        phone = line.replace(/^[•\-\*]\s*លេខទូរស័ព្ទ:\s*/, '').trim();
+      if (line.includes('លេខទូរស័ព្ទ:') || line.includes('电话:') || line.includes('電話:')) {
+        phone = line.replace(/^[•\-\*]\s*(លេខទូរស័ព្ទ|电话|電話):\s*/, '').trim();
       }
-      if (line.includes('ទីតាំង:') || line.includes('អាសយដ្ឋាន:')) {
-        address = line.replace(/^[•\-\*]\s*(ទីតាំង|អាសយដ្ឋាន):\s*/, '').trim();
+      if (line.includes('ទីតាំង:') || line.includes('អាសយដ្ឋាន:') || line.includes('地址:')) {
+        address = line.replace(/^[•\-\*]\s*(ទីតាំង|អាសយដ្ឋាន|地址):\s*/, '').trim();
       }
       if (line.includes('ទីតាំង Map:') || line.includes('Map:')) {
         mapUrl = line.replace(/^[•\-\*]\s*(ទីតាំង Map|Map):\s*/, '').trim();
       }
 
-      if (line.includes('ដឹកជញ្ជូន')) {
+      if (line.includes('ដឹកជញ្ជូន') || line.includes('运费') || line.includes('Delivery')) {
         let feeMatch = line.match(/\$([\d\.]+)/);
         if (feeMatch) {
           deliveryFee = parseFloat(feeMatch[1]) || 0;
@@ -722,16 +729,16 @@ function parseOrderText(text) {
       }
 
       const itemMatch = line.match(/^\d+\.\s+(.+)$/);
-      if (itemMatch && !line.includes('សរុប')) {
+      if (itemMatch && !line.includes('សរុប') && !line.includes('总计')) {
         let itemName = itemMatch[1].trim();
         let size = "គ្មាន";
         let qty = 1;
         let price = 0;
 
-        if (i + 1 < lines.length && (lines[i + 1].includes('Size:') || lines[i + 1].includes('×'))) {
+        if (i + 1 < lines.length && (lines[i + 1].includes('Size:') || lines[i + 1].includes('×') || lines[i + 1].includes('x'))) {
           let nextLine = lines[i + 1];
           i++;
-          let sizeMatch = nextLine.match(/Size:\s*([^×]+)×\s*([\d\.]+)\s*—\s*\$([\d\.]+)/i);
+          let sizeMatch = nextLine.match(/Size:\s*([^×x]+)[×x]\s*([\d\.]+)\s*—\s*\$([\d\.]+)/i);
           if (sizeMatch) {
             size = sizeMatch[1].trim();
             qty = parseFloat(sizeMatch[2]) || 1;
@@ -758,22 +765,42 @@ function parseOrderText(text) {
   }
 }
 
+// 🧠 SMART TEXT WRAPPER (Support Khmer + Chinese + English)
 function wrapText(ctx, text, maxWidth) {
   const words = text.split(' ');
   let lines = [];
-  let currentLine = words[0];
+  let currentLine = '';
 
-  for (let i = 1; i < words.length; i++) {
-    const word = words[i];
-    const width = ctx.measureText(currentLine + " " + word).width;
-    if (width < maxWidth) {
-      currentLine += " " + word;
+  for (let i = 0; i < words.length; i++) {
+    let word = words[i];
+    let testLine = currentLine ? currentLine + ' ' + word : word;
+
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      currentLine = testLine;
     } else {
-      lines.push(currentLine);
-      currentLine = word;
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+
+      // ប្រសិនបើពាក្យ/អក្សរចិនវែងពេកគ្មាន Space ត្រូវពុះតាមតួអក្សរ (Character-by-character wrap for CJK)
+      if (ctx.measureText(word).width > maxWidth) {
+        let charLine = '';
+        for (let char of Array.from(word)) {
+          if (ctx.measureText(charLine + char).width > maxWidth) {
+            if (charLine) lines.push(charLine);
+            charLine = char;
+          } else {
+            charLine += char;
+          }
+        }
+        currentLine = charLine;
+      } else {
+        currentLine = word;
+      }
     }
   }
-  lines.push(currentLine);
+  if (currentLine) lines.push(currentLine);
   return lines;
 }
 
@@ -784,7 +811,9 @@ function renderSinglePage(data, pageItems, startIndex, pageNum, totalPages, exch
     const baseWidth = 850;
     const isFirstPage = pageNum === 1;
     const isLastPage = pageNum === totalPages;
-    const font = 'KhmerFont, sans-serif';
+    
+    // 🌐 កំណត់ឱ្យប្រើ Font Khmer និង Font ចិនរួមគ្នា
+    const font = 'KhmerFont, ChineseFont, sans-serif';
     
     const canvasTemp = createCanvas(baseWidth * scale, 100 * scale);
     const ctxTemp = canvasTemp.getContext('2d');
@@ -1013,7 +1042,7 @@ bot.on('text', async (ctx, next) => {
     return ctx.reply("❌ អ្នកមិនទាន់ទទួលបានសិទ្ធិប្រើប្រាស់មុខងារបង្កើត Invoice នេះទេ។");
   }
 
-  if (text.includes('Order') || text.includes('ព័ត៌មានអតិថិជន') || text.includes('ទំនិញ')) {
+  if (text.includes('Order') || text.includes('ព័ត៌មានអតិថិជន') || text.includes('ទំនិញ') || text.includes('姓名')) {
     const orderData = parseOrderText(text);
     if (!orderData || orderData.items.length === 0) {
       return ctx.reply("❌ មិនអាចអានទម្រង់អត្ថបទបញ្ជាទិញនេះបានទេ!");
@@ -1060,10 +1089,6 @@ bot.on('text', async (ctx, next) => {
         })));
       }
 
-      mediaGroup.px?.forEach?.(m => {
-        if (fs.existsSync(m.path)) fs.unlinkSync(m.path);
-      });
-      // Safe cleanup loop:
       mediaGroup.forEach(m => {
         if (fs.existsSync(m.path)) fs.unlinkSync(m.path);
       });
@@ -1080,7 +1105,7 @@ bot.on('text', async (ctx, next) => {
 
 // --- 16. START APP ---
 async function startApp() {
-  await setupKhmerFont();
+  await setupFonts();
   await initDB();
   fetchLiveExchangeRate();
   setInterval(fetchLiveExchangeRate, 12 * 60 * 60 * 1000);
